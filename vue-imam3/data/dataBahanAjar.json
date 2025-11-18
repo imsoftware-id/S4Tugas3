@@ -108,11 +108,11 @@
         },
         {
             "DO2025-0002": {
-                "nim": "123456789",
+                "nim": "22222222",
                 "nama": "Rina Wulandari",
                 "status": "Dalam Perjalanan",
                 "ekspedisi": "JNE",
-                "tanggalKirim": "2025-08-25",
+                "tanggalKirim": "2025-08-20",
                 "paket": "PAKET-UT-001",
                 "total": 120000,
                 "perjalanan": [
