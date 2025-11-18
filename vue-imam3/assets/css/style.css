@@ -465,25 +465,32 @@ nav button.active { background:#111827; color:#fff; border-color:#111827; }
 
 .controls { display:flex; flex-wrap:wrap; gap:8px 12px; margin-bottom:12px; align-items:flex-end; }
 .controls .field { display:flex; flex-direction:column; }
-.controls .field label { font-size:12px; color:#374151; margin-bottom:4px; }
+.controls .field label { font-size:12px; color:#374151; margin-bottom:5px; }
 input[type="text"], input[type="number"], input[type="date"], select, textarea {
   padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; min-width:180px;
 }
 input.small { min-width:100px; width:100px; }
 
+.actions {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;          /* jarak antar tombol */
+  align-items: center;
+}
+
 .actions button { margin-right:6px; padding:6px 10px; border:1px solid #d1d5db; background:#fff; border-radius:6px; cursor:pointer; }
-.actions .danger { border-color: var(--red); color: var(--red); }
-.actions .primary { border-color:#111827; background:#111827; color:#fff; }
+.actions .danger { border-color: var(--red); color:#fff; background:var(--danger); }
+.actions .primary { border-color:#111827; background:var(--primary); color:#fff; }
 
 .badge { display:inline-flex; align-items:center; gap:6px; padding:4px 8px; border-radius:999px; font-size:12px; font-weight:600; border:1px solid transparent; position:relative; }
 .badge.safe { color:var(--green); border-color:var(--green); background: #f0fdf4; }
-.badge.warn { color:var(--orange); border-color:var(--orange); background:#fff7ed; }
-.badge.empty { color:#fff; background:var(--red); border-color:var(--red); }
+.badge.warn { color:#FFA500; border-color:#FFBF00; background:#fff7ed; }
+.badge.empty { color:#fff; background:var(--danger); border-color:#fff7ed; }
 .badge .dot { width:8px; height:8px; border-radius:999px; background: currentColor; }
 .tooltip {
   position:absolute; top:125%; left:0; min-width:240px; background:#111827; color:#fff;
   padding:10px 12px; border-radius:8px; box-shadow:0 10px 25px rgba(0,0,0,.2);
-  font-size:12px; z-index:20;
+  font-size:12px; z-index:100;
 }
 .tooltip:before { content:""; position:absolute; top:-6px; left:10px; width:8px; height:8px; transform:rotate(45deg); background:#111827; }
 

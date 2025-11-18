@@ -10,9 +10,9 @@ Vue.component('status-badge', {
     },
     computed: {
       info() {
-        if (this.qty === 0) return { cls:'empty', label:'Kosong' };
-        if (this.qty < this.safety) return { cls:'warn', label:'Menipis' };
-        return { cls:'safe', label:'Aman' };
+        if (this.qty === 0) return { cls:'status-kosong', label:'Kosong' };
+        if (this.qty < this.safety) return { cls:'status-menipis', label:'Menipis' };
+        return { cls:'status-aman', label:'Aman' };
       }
     }
   });
