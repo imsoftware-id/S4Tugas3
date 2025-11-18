@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking Delivery Order (DO)</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div>
+            <a href="index.html">
+                <span>SITTA UT</span>
+            </a>
+            <input id="menu-toggle" type="checkbox">
+            <label for="menu-toggle"></label>
+            <nav>
+                <a href="index.html">Beranda</a>
+                <a href="stok.html">Manajemen Stok</a>
+                <a href="tracking.html" class="active">Tracking DO</a>
+            </nav>
+        </div>
+    </header>
+
+    <div class="container">
+        <main id="app-tracking">
+            <section class="form-section">
+                <h3>Tambah Delivery Order (DO) Baru</h3>
+                <form @submit.prevent="tambahDO">
+                    <div>
+                        <label>Nomor DO (Otomatis):</label>
+                        <strong style="font-size: 1.2rem; color: var(--primary);">{{ nextDONumber }}</strong>
+                    </div>
+                    <div>
+                        <label for="newNIM">NIM:</label>
+                        <input type="text" id="newNIM" v-model="newDO.nim" placeholder="Ketik NIM (cth: 123456789)">
+                    </div>
+                    <div>
+                        <label for="newNama">Nama Mahasiswa:</label>
+                        <input type="text" id="newNama" v-model="newDO.nama" placeholder="Akan terisi otomatis jika NIM ditemukan">
+                    </div>
+                    <div>
+                        <label for="newEkspedisi">Ekspedisi:</label>
+                        <select id="newEkspedisi" v-model="newDO.ekspedisi" required>
+                            <option value="">Pilih Ekspedisi</option>
+                            <option v-for="item in pengirimanList" :value="item.kode">{{ item.nama }}</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="newPaket">Paket Bahan Ajar:</label>
+                        <select id="newPaket" v-model="newDO.paket" required>
+                            <option value="">Pilih Paket</option>
+                            <option v-for="item in paket" :value="item.kode">{{ item.nama }} ({{ item.kode }})</option>
+                        </select>
+                    </div>
+                    <div class="info-box" v-if="selectedPaketDetails">
+                        <strong>Isi Paket:</strong> {{ selectedPaketDetails }}
+                    </div>
+                    <div>
+                        <label for="newTglKirim">Tanggal Kirim:</label>
+                        <input type="date" id="newTglKirim" v-model="newDO.tglKirim" required>
+                    </div>
+                    <div>
+                        <label for="newHarga">Total Harga:</label>
+                        <input type="text" id="newHarga" :value="formattedHarga" readonly style="background-color: #f9f9f9;">
+                    </div>
+                    <button type="submit" class="btn btn--primary" style="margin-top: 16px;">Tambah DO</button>
+                </form>
+            </section>
+
+            <section class="filter-box">
+                <h3>Lacak Delivery Order (DO)</h3>
+                <div>
+                    <label for="searchDO">Cari Nomor DO:</label>
+                    <input type="text" id="searchDO" v-model="searchDO" placeholder="Contoh: DO2025-0001">
+                </div>
+            </section>
+            
+            <section>
+                <h3>Daftar Semua Pengiriman</h3>
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nomor DO</th>
+                                <th>Tgl. Kirim</th>
+                                <th class="wrap-text">Nama (NIM)</th>
+                                <th>Status</th>
+                                <th>Paket</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="item in allTrackingList" :key="item.doNumber">
+                                <td>{{ item.doNumber }}</td>
+                                <td>{{ formatTanggal(item.tanggalKirim) }}</td>
+                                <td class="wrap-text">{{ item.nama }} ({{ item.nim }})</td>
+                                <td>
+                                    <span :class="getStatusClass(item.status)">{{ item.status }}</span>
+                                </td>
+                                <td>{{ item.paket }}</td>
+                                <td>{{ formatCurrency(item.total) }}</td>
+                            </tr>
+                            <tr v-if="allTrackingList.length === 0">
+                                <td colspan="6" style="text-align: center; color: var(--muted);">
+                                    Belum ada data pengiriman.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section>
+              <h3>Hasil Pelacakan</h3>
+              
+              <div v-if="searchResult" class="do-card">
+                  <h4>{{ searchDO }}</h4> <p><strong>Nama:</strong> {{ searchResult.nama }} (NIM: {{ searchResult.nim }})</p>
+
+                  <p><strong>Status:</strong> 
+                      <span :class="getStatusClass(searchResult.status)">{{ searchResult.status }}</span>
+                  </p>
+                  <p><strong>Ekspedisi:</strong> {{ searchResult.ekspedisi }}</p>
+                  <p><strong>Paket:</strong> {{ searchResult.paket }}</p>
+                  
+                  <p><strong>Perjalanan:</strong></p> 
+                  
+                  <ul>
+                      <li v-for="jejak in searchResult.perjalanan" :key="jejak.waktu">
+                          {{ jejak.waktu }} - {{ jejak.keterangan }}
+                      </li>
+                  </ul>
+              </div>
+              
+              <p v-else-if="searchDO && !searchResult" style="color: var(--muted); text-align: center;">
+                  Nomor DO "{{ searchDO }}" tidak ditemukan.
+              </p>
+              
+              <p v-else style="color: var(--muted); text-align: center;">
+                  Silakan masukkan Nomor DO di atas untuk melihat detail pelacakan.
+              </p>
+          </section>
+          <footer style="color:black"><center>&copy; IMAM MA'SUM ( 051146712 ) </center></footer>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+    <script src="js/tracking-app.js"></script>
+</body>
+</html>

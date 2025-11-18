@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>SITTA – Pemesanan & Distribusi Bahan Ajar (Vue.js)</title>
+  <link rel="stylesheet" href="assets/css/style.css"/>
+</head>
+<body>
+  <div id="app">
+    <header>
+      <h1>SITTA – Pemesanan & Distribusi Bahan Ajar</h1>
+      <nav style="margin-top:10px">
+        <button class="btn" :class="{ 'active': tab==='stok' }" @click="tab='stok'">Stok</button>
+        <button class="btn" :class="{ 'active': tab==='tracking' }" @click="tab='tracking'">Tracking DO</button>
+        <button class="btn" :class="{ 'active': tab==='order' }" @click="tab='order'">Pemesanan/Order</button>
+      </nav>
+    </header>
+
+    <div class="container" v-if="loading">
+      Memuat data...
+    </div>
+    <div class="container" v-else>
+      <section v-show="tab==='stok'">
+        <ba-stock-table
+          :items.sync="state.stok"
+          :upbjj-list="state.upbjjList"
+          :kategori-list="state.kategoriList">
+        </ba-stock-table>
+      </section>
+
+      <section v-show="tab==='tracking'">
+        <div class="controls" style="margin-bottom:16px">
+          <div class="field">
+            <label>Cari Nomor DO / NIM (Enter = Cari, Esc = Clear)</label>
+            <input type="text" v-model="trackingQuery"
+                   @keyup.enter="$refs.trk && ($refs.trk.q = trackingQuery)"
+                   @keyup.esc="trackingQuery=''; $refs.trk && $refs.trk.clear()"
+                     placeholder="Mis. DO2025-0001 / 123456789"/>
+          </div>
+        </div>
+        <do-tracking
+          ref="trk"
+          :data.sync="state.tracking"
+          :paket="state.paket"
+          :ekspedisi="state.pengirimanList">
+        </do-tracking>
+      </section>
+
+      <section v-show="tab==='order'">
+        <order-form
+          :paket="state.paket"
+          :ekspedisi="state.pengirimanList"
+          :stok="state.stok"
+          :tracking.sync="state.tracking">
+        </order-form>
+      </section>
+
+      <div v-if="error" style="color:#dc2626;margin-top:12px">Error: {{ error }}</div>
+    </div>
+  </div>
+
+  <!-- Templates -->
+  <script type="text/x-template" id="tpl-status-badge">
+    <span class="badge" :class="info.cls" @mouseenter="showTip=true" @mouseleave="showTip=false">
+      <span class="dot"></span> {{ info.label }}
+      <span v-if="showTip && notes" class="tooltip" v-html="notes"></span>
+    </span>
+  </script>
+
+  <script type="text/x-template" id="tpl-modal">
+    <transition name="modal">
+      <div class="modal-mask" v-if="show" @click.self="close">
+        <div class="modal-wrapper">
+          <div class="modal-container">
+            <div class="modal-header">{{ title }}</div>
+            <div class="modal-body"><slot>Apakah Anda yakin?</slot></div>
+            <div class="modal-footer">
+                <button class="btn btn--cancel" @click="close">Batal (Esc)</button>
+                <button class="btn btn--danger" @click="confirm">Hapus</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </script>
+
+  <script type="text/x-template" id="tpl-stock">
+    <div>
+      <div class="controls">
+        <div class="field">
+          <label>UPBJJ</label>
+          <select v-model="selectedUpbjj">
+            <option value="">(Semua)</option>
+            <option v-for="u in upbjjList" :key="u" :value="u">{{ u }}</option>
+          </select>
+        </div>
+        <div class="field" v-show="selectedUpbjj">
+          <label>Kategori (berdasar UPBJJ terpilih)</label>
+          <select v-model="selectedKategori">
+            <option value="">(Semua)</option>
+            <option v-for="k in availableKategori" :key="k" :value="k">{{ k }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Filter</label>
+          <div>
+            <label><input type="checkbox" v-model="onlyReorder"> Hanya Menipis </label>
+            <label style="margin-left:8px"><input type="checkbox" v-model="onlyEmpty"> Hanya Kosong </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Cari</label>
+          <input type="text" v-model="q" placeholder="Ketik kode/judul..."/>
+        </div>
+        <div class="field">
+          <label>Urutkan</label>
+          <div>
+            <button class="btn" @click="toggleSort('judul')">Judul</button>
+            <button class="btn" @click="toggleSort('qty')">Stok</button>
+            <button class="btn" @click="toggleSort('harga')">Harga</button>
+            <span style="margin-left:6px;color:#64748b">({{ sortKey }} • {{ sortDir }})</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>&nbsp;</label>
+          <button class="btn btn--primary" @click="resetFilters">Reset</button>
+        </div>
+        <div class="field" style="margin-left:auto">
+          <label>&nbsp;</label>
+          <button class="btn btn--primary" @click="addOpen = !addOpen">{{ addOpen ? 'Tutup' : 'Tambah Bahan Ajar' }}</button>
+        </div>
+      </div>
+
+      <div v-if="addOpen" style="border:1px solid #e5e7eb; padding:12px; border-radius:10px; margin-bottom:12px">
+        <h3 style="margin:0 0 10px">Tambah Bahan Ajar (Enter = Simpan)</h3>
+        <div class="controls">
+          <div class="field"><label>Kode</label><input v-model.trim="newItem.kode" @keyup.enter="submitAdd"/></div>
+          <div class="field" style="flex:1"><label>Judul</label><input v-model.trim="newItem.judul" @keyup.enter="submitAdd" style="min-width:320px"/></div>
+          <div class="field"><label>Kategori</label>
+            <select v-model="newItem.kategori" @keyup.enter="submitAdd">
+              <option value="">Pilih…</option>
+              <option v-for="k in kategoriList" :key="k" :value="k">{{ k }}</option>
+            </select>
+          </div>
+          <div class="field"><label>UPBJJ</label>
+            <select v-model="newItem.upbjj" @keyup.enter="submitAdd">
+              <option value="">Pilih…</option>
+              <option v-for="u in upbjjList" :key="u" :value="u">{{ u }}</option>
+            </select>
+          </div>
+          <div class="field"><label>Lokasi Rak</label><input v-model.trim="newItem.lokasiRak" @keyup.enter="submitAdd"/></div>
+          <div class="field"><label>Harga</label><input type="number" v-model.number="newItem.harga" class="small" min="0" @keyup.enter="submitAdd"/></div>
+          <div class="field"><label>Qty</label><input type="number" v-model.number="newItem.qty" class="small" min="0" @keyup.enter="submitAdd"/></div>
+          <div class="field"><label>Safety</label><input type="number" v-model.number="newItem.safety" class="small" min="0" @keyup.enter="submitAdd"/></div>
+          <div class="field" style="flex:1"><label>Catatan (HTML diperbolehkan)</label><input v-model="newItem.catatanHTML" @keyup.enter="submitAdd" placeholder="<em>teks</em>"/></div>
+          <div class="field"><label>&nbsp;</label><button class="btn btn--primary" @click="submitAdd">Simpan</button></div>
+        </div>
+      </div>
+
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Kode / Judul</th>
+            <th>Kategori</th>
+            <th>UPBJJ</th>
+            <th>Lokasi Rak</th>
+            <th>Harga</th>
+            <th>Qty</th>
+            <th>Safety</th>
+            <th>Status</th>
+            <th style="width:140px">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(x, i) in filteredSorted" :key="x.kode + i">
+            <template v-if="editIdx === i">
+              <td>
+                <div style="font-weight:600">{{ x.kode }}</div>
+                <input v-model="editDraft.judul" style="min-width:280px" @keyup.enter="saveEdit">
+              </td>
+              <td><select v-model="editDraft.kategori"><option v-for="k in kategoriList" :key="k" :value="k">{{ k }}</option></select></td>
+              <td><select v-model="editDraft.upbjj"><option v-for="u in upbjjList" :key="u" :value="u">{{ u }}</option></select></td>
+              <td><input v-model="editDraft.lokasiRak" @keyup.enter="saveEdit"></td>
+              <td><input type="number" v-model.number="editDraft.harga" class="small" @keyup.enter="saveEdit"></td>
+              <td><input type="number" v-model.number="editDraft.qty" class="small" @keyup.enter="saveEdit"></td>
+              <td><input type="number" v-model.number="editDraft.safety" class="small" @keyup.enter="saveEdit"></td>
+              <td><status-badge :qty="editDraft.qty" :safety="editDraft.safety" :notes="editDraft.catatanHTML"></status-badge></td>
+              <td class="actions">
+                <button class="primary" @click="saveEdit">Simpan</button>
+                <button @click="cancelEdit">Batal</button>
+              </td>
+            </template>
+            <template v-else>
+              <td>
+                <div style="font-weight:600">{{ x.kode }}</div>
+                <div>{{ x.judul }}</div>
+              </td>
+              <td>{{ x.kategori }}</td>
+              <td>{{ x.upbjj }}</td>
+              <td>{{ x.lokasiRak }}</td>
+              <td>{{ x.harga | rupiah }}</td>
+              <td>{{ x.qty | buah }}</td>
+              <td>{{ x.safety | buah }}</td>
+              <td><status-badge :qty="x.qty" :safety="x.safety" :notes="x.catatanHTML"></status-badge></td>
+              <td class="actions">
+                <button class="primary" @click="startEdit(i)">Edit</button>
+                <button class="btn btn--edit" @click="askDelete(i)">Delete</button>
+              </td>
+            </template>
+          </tr>
+        </tbody>
+      </table>
+
+      <app-modal :show="modal.show" title="Hapus Data" @close="modal.show=false" @confirm="doDelete">
+        Apakah Anda yakin akan menghapus data bahan ajar ini?
+      </app-modal>
+    </div>
+  </script>
+
+  <script type="text/x-template" id="tpl-tracking">
+    <div>
+      <div class="controls">
+        <div class="field" style="flex:1">
+          <label>Kata kunci (diatur dari kotak pencarian di atas)</label>
+          <input type="text" v-model="q" placeholder="Nomor DO/NIM" @keyup.enter="" @keyup.esc="clear">
+        </div>
+        <div class="field"><label>&nbsp;</label><button class="btn" @click="clear">Reset</button></div>
+      </div>
+
+      <div v-if="filtered.length===0" style="color:#64748b">Belum ada data atau tidak ditemukan.</div>
+
+      <div v-for="it in filtered" :key="it.no" style="border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-bottom:12px">
+        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap">
+          <div>
+            <div style="font-weight:700; font-size:16px">No. DO: {{ it.no }}</div>
+            <div>NIM: <strong>{{ it.detail.nim }}</strong> • Nama: <strong>{{ it.detail.nama }}</strong></div>
+            <div>Ekspedisi: {{ it.detail.ekspedisi }} • Tgl Kirim: <strong>{{ it.detail.tanggalKirim | tglIndo }}</strong> • Paket: <code>{{ it.detail.paket }}</code> • Total: <strong>{{ it.detail.total | rupiah }}</strong></div>
+          </div>
+          <div style="align-self:center">
+            <span class="badge safe"><span class="dot"></span>{{ it.detail.status || 'Dalam Perjalanan' }}</span>
+          </div>
+        </div>
+
+        <div style="margin-top:10px">
+          <div style="font-weight:600">Riwayat Perjalanan</div>
+          <ul style="margin:6px 0 10px 18px">
+            <li v-for="(p,idx) in (it.detail.perjalanan||[])" :key="idx">
+              <code>{{ p.waktu }}</code> — {{ p.keterangan }}
+            </li>
+            <li v-if="!(it.detail.perjalanan && it.detail.perjalanan.length)">Belum ada catatan perjalanan.</li>
+          </ul>
+          <div class="controls">
+            <div class="field" style="flex:1">
+              <label>Tambah Status (Enter = Tambah)</label>
+              <input type="text" v-model="progressText[it.no]" placeholder="Mis. Penerimaan di Loket: TANGSEL" @keyup.enter="addProgress(it.no)">
+            </div>
+            <div class="field"><label>&nbsp;</label><button class="btn btn--primary" @click="addProgress(it.no)">Tambah</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </script>
+
+  <script type="text/x-template" id="tpl-order">
+    <div>
+      <h3 style="margin-top:0">Buat Delivery Order Baru</h3>
+      <div class="controls">
+        <div class="field"><label>NIM</label><input v-model.trim="form.nim" type="text" placeholder="123456789" @keyup.enter="submit"></div>
+        <div class="field" style="flex:1"><label>Nama</label><input v-model.trim="form.nama"  type="text" @keyup.enter="submit"></div>
+        <div class="field">
+          <label>Ekspedisi</label>
+          <select v-model="form.ekspedisi">
+            <option v-for="e in ekspedisi" :key="e.kode" :value="e.kode">{{ e.nama }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Paket</label>
+          <select v-model="form.paketKode">
+            <option value="">Pilih Paket…</option>
+            <option v-for="p in paket" :key="p.kode" :value="p.kode">{{ p.kode }} — {{ p.nama }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tanggal Kirim</label>
+          <div style="display:flex; gap:6px">
+            <input type="date" v-model="form.tanggalKirim">
+            <button class="btn" @click="today">Hari Ini</button>
+          </div>
+          <div style="color:#64748b; font-size:12px; margin-top:2px">
+            Format tampilan: <em>{{ form.tanggalKirim | tglIndo }}</em>
+          </div>
+        </div>
+        <div class="field"><label>Total Harga</label>
+          <input class="small" type="number" v-model.number="form.total" min="0" readonly>
+        </div>
+        <div class="field"><label>&nbsp;</label><button class="btn btn--primary" @click="submit">Simpan (Enter)</button></div>
+      </div>
+
+      <div v-if="paketDetail" style="border:1px solid #e5e7eb; border-radius:10px; padding:12px; margin-top:6px">
+        <div style="font-weight:600; margin-bottom:6px">Detail Paket: {{ paketDetail.kode }} — {{ paketDetail.nama }} ({{ paketDetail.harga | rupiah }})</div>
+        <ul style="margin:0 0 0 18px">
+          <li v-for="kode in paketDetail.isi" :key="kode"><code>{{ kode }}</code></li>
+        </ul>
+      </div>
+
+      <div v-if="msg" style="margin-top:10px; color:#dc2626">{{ msg }}</div>
+
+    </div>
+  </script>
+
+  <!-- Vue (CDN) & scripts (urutan penting) -->
+  <script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+  <!-- services -->
+  <script src="js/services/api.js"></script>
+  <!-- components -->
+  <script src="js/components/status-badge.js"></script>
+  <script src="js/components/app-modal.js"></script>
+  <script src="js/components/stock-table.js"></script>
+  <script src="js/components/do-tracking.js"></script>
+  <script src="js/components/order-form.js"></script>
+  <!-- app -->
+  <script src="js/app.js"></script>
+</body>
+</html>
