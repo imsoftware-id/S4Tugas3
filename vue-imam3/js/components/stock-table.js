@@ -111,33 +111,65 @@ Vue.component('ba-stock-table', {
         this.addOpen = false;
       },
       // UPDATE (inline row edit)
-      startEdit(idx){
-        this.editIdx = idx;
-        this.editDraft = JSON.parse(JSON.stringify(this.items[idx]));
-      },
-      saveEdit(){
-        if (this.editIdx < 0) return;
-        const copy = this.items.slice();
-        copy.splice(this.editIdx, 1, JSON.parse(JSON.stringify(this.editDraft)));
-        this.$emit('update:items', copy);
-        this.cancelEdit();
-      },
-      cancelEdit(){
-        this.editIdx = -1;
-        this.editDraft = null;
-      },
-      // DELETE
-      askDelete(idx){
-        this.modal.idx = idx;
-        this.modal.show = true;
-      },
-      doDelete(){
-        const idx = this.modal.idx;
-        const copy = this.items.slice();
-        copy.splice(idx,1);
-        this.$emit('update:items', copy);
-        this.modal.show = false;
-        this.modal.idx = -1;
-      }
+      startEdit(visualIndex) {
+          this.editIdx = visualIndex; // Simpan i agar v-if="editIdx === i" bernilai true
+          
+          // 1. Ambil objek item berdasarkan urutan TAMPILAN
+          const itemVisual = this.filteredSorted[visualIndex];
+          
+          // 2. Copy data ke draft
+          this.editDraft = JSON.parse(JSON.stringify(itemVisual));
+        },
+saveEdit() {
+    if (this.editIdx < 0) return;
+
+    // 1. Kita butuh tahu item mana yang sedang diedit
+    // Karena filter/sort mungkin berubah, kita ambil lagi item dari filteredSorted berdasarkan editIdx
+    const itemVisual = this.filteredSorted[this.editIdx];
+
+    // 2. Cari indeks ASLI item tersebut di array utama (items)
+    // Kita pakai indexOf untuk mencari posisi objek yang sama persis di memori
+    const realIndex = this.items.indexOf(itemVisual);
+
+    // 3. Update data di array ASLI
+    if (realIndex > -1) {
+      const copy = this.items.slice();
+      copy.splice(realIndex, 1, JSON.parse(JSON.stringify(this.editDraft)));
+      this.$emit('update:items', copy);
+    }
+
+    this.cancelEdit();
+  },
+
+  cancelEdit() {
+    this.editIdx = -1;
+    this.editDraft = null;
+  },
+
+  // --- LOGIKA DELETE ---
+  askDelete(visualIndex) {
+    // 1. Ambil item berdasarkan urutan TAMPILAN
+    const itemVisual = this.filteredSorted[visualIndex];
+
+    // 2. Cari indeks ASLI di array utama
+    const realIndex = this.items.indexOf(itemVisual);
+
+    // 3. Simpan indeks ASLI ini ke modal, bukan indeks visual
+    this.modal.idx = realIndex; 
+    this.modal.show = true;
+  },
+
+  doDelete() {
+    const realIdx = this.modal.idx; // Ini sudah indeks asli dari askDelete tadi
+
+    if (realIdx > -1) {
+      const copy = this.items.slice();
+      copy.splice(realIdx, 1); // Hapus aman karena pakai index asli
+      this.$emit('update:items', copy);
+    }
+
+    this.modal.show = false;
+    this.modal.idx = -1;
+  }
     }
   });
